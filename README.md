@@ -23,5 +23,5 @@ This repository contains the implementation of a Convolutional Neural Network (C
 To get started with this project, clone the repository and install the required dependencies:
 
 ```bash
-git clone [https://github.com/your-username/CNN-CV.git](https://github.com/DagMalstaf/CNN-CV.git)
+git clone https://github.com/DagMalstaf/CNN-CV.git
 cd CNN-CV
