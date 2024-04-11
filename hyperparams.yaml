@@ -1,0 +1,14 @@
+hyperparameters:
+  learning_rate:
+    low: 0.0001
+    high: 0.01
+  momentum:
+    low: 0.5
+    high: 0.99
+  weight_decay:
+    low: 0.00001
+    high: 0.001
+  batch_size:
+    values: [16, 32, 64, 128]
+  epochs:
+    values: [10, 20, 30, 50]

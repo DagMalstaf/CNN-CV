@@ -1,0 +1,14 @@
+model:
+  name: 'ResNet50'
+  num_classes: 3  
+
+training:
+  batch_size: 32
+  epochs: 30
+  learning_rate: 0.001
+  momentum: 0.9
+  weight_decay: 0.0001
+
+dataset:
+  csv_path_train: 'data/output_notaugmented2.csv'
+  csv_path_test: 'data/output_notaugmented_test.csv'
