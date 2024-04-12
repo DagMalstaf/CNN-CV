@@ -5,21 +5,25 @@ import torch.nn.functional as F
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
+    def __init__(self, in_channels, out_channels, stride=1, downsample=None, dropout_rate=0.5):
         super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
         self.downsample = downsample
         self.stride = stride
+        self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, x):
         identity = x
 
         out = self.conv1(x)
         out = self.bn1(out)
-        out = F.relu(out)
+        out = self.relu(out)
+
+        out = self.dropout(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
@@ -28,14 +32,14 @@ class BasicBlock(nn.Module):
             identity = self.downsample(x)
 
         out += identity
-        out = F.relu(out)
+        out = self.relu(out)
 
         return out
 
 class Bottleneck(nn.Module):
     expansion = 4
 
-    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
+    def __init__(self, in_channels, out_channels, stride=1, downsample=None, dropout_rate=0.5):
         super(Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(out_channels)
@@ -43,19 +47,25 @@ class Bottleneck(nn.Module):
         self.bn2 = nn.BatchNorm2d(out_channels)
         self.conv3 = nn.Conv2d(out_channels, out_channels * self.expansion, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(out_channels * self.expansion)
+        self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
+        self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, x):
         identity = x
 
         out = self.conv1(x)
         out = self.bn1(out)
-        out = F.relu(out)
+        out = self.relu(out)
+
+        out = self.dropout(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
-        out = F.relu(out)
+        out = self.relu(out)
+
+        out = self.dropout(out)
 
         out = self.conv3(out)
         out = self.bn3(out)
@@ -64,22 +74,22 @@ class Bottleneck(nn.Module):
             identity = self.downsample(x)
 
         out += identity
-        out = F.relu(out)
+        out = self.relu(out)
 
         return out
 
 class ResNet(nn.Module):
-    def __init__(self, block, layers, num_classes=1000):
+    def __init__(self, block, layers, num_classes=1000, dropout_rate=0.5):
         super(ResNet, self).__init__()
         self.in_channels = 64
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+        self.layer1 = self._make_layer(block, 64, layers[0], dropout_rate=dropout_rate)
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2, dropout_rate=dropout_rate)
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dropout_rate=dropout_rate)
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=2, dropout_rate=dropout_rate)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
@@ -91,7 +101,7 @@ class ResNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def _make_layer(self, block, out_channels, blocks, stride=1):
+    def _make_layer(self, block, out_channels, blocks, stride=1, dropout_rate=0.5):
         downsample = None
         if stride != 1 or self.in_channels != out_channels * block.expansion:
             downsample = nn.Sequential(
@@ -100,10 +110,10 @@ class ResNet(nn.Module):
             )
 
         layers = []
-        layers.append(block(self.in_channels, out_channels, stride, downsample))
+        layers.append(block(self.in_channels, out_channels, stride, downsample, dropout_rate))
         self.in_channels = out_channels * block.expansion
         for _ in range(1, blocks):
-            layers.append(block(self.in_channels, out_channels))
+            layers.append(block(self.in_channels, out_channels, dropout_rate=dropout_rate))
 
         return nn.Sequential(*layers)
 
@@ -124,5 +134,5 @@ class ResNet(nn.Module):
 
         return x
 
-def resnet50(num_classes=1000):
-    return ResNet(Bottleneck, [3, 4, 6, 3], num_classes=num_classes)
+def resnet50(num_classes=1000, dropout_rate=0.5):
+    return ResNet(Bottleneck, [3, 4, 6, 3], num_classes=num_classes, dropout_rate=dropout_rate)

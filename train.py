@@ -5,8 +5,10 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import time
 import copy
+from torch.optim import lr_scheduler
 
-def train_model(model, criterion, optimizer, train_loader, val_loader, num_epochs=25, device=None):
+
+def train_model(model, criterion, optimizer, train_loader, val_loader, num_epochs=25, scheduler=None, device=None):
     if device is None:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
@@ -69,6 +71,12 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, num_epoch
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
+            
+            if phase == 'val' and scheduler is not None:
+                if isinstance(scheduler, lr_scheduler.ReduceLROnPlateau):
+                    scheduler.step(epoch_loss)
+                else:
+                    scheduler.step()
 
         print()
 

@@ -5,9 +5,10 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
-import numpy as np
-import time
+from torch.optim import lr_scheduler
 
+import numpy as np
+from time import time
 import model
 import train
 from data_functions import load_and_prepare_data, load_config, load_test_data
@@ -36,11 +37,17 @@ def create_data_loaders(train_imgs, train_labels, val_imgs, val_labels, batch_si
 
 
 def main():
-    start = time.time()
+    start_time = time()
     config = load_config('config.yaml')
     net = model.resnet50(num_classes=config['model']['num_classes'])
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=config['training']['learning_rate'], momentum=config['training']['momentum'], weight_decay=config['training']['weight_decay'])
+
+    optimizer = getattr(optim, config['training']['optimizer'])(
+        net.parameters(),
+        lr=config['training']['learning_rate'],
+        weight_decay=config['training']['weight_decay'],
+        **config['training'].get('optimizer_params', {})
+    )
 
     train_imgs, train_labels, val_imgs, val_labels = load_and_prepare_data(config['dataset']['csv_path_train'], transform)
 
@@ -52,11 +59,24 @@ def main():
 
     train_loader, val_loader = create_data_loaders(
         train_imgs, train_labels, val_imgs, val_labels, config['training']['batch_size'])
+    
+    scheduler = None
+    scheduler_type = config['training'].get('lr_scheduler')
+    
+    if scheduler_type == 'StepLR':
+        scheduler_params = config['training'].get('step_lr_params', {})
+        scheduler = lr_scheduler.StepLR(optimizer, **scheduler_params)
+    elif scheduler_type == 'ReduceLROnPlateau':
+        scheduler_params = config['training'].get('reduce_lr_on_plateau_params', {})
+        scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_params)
 
     print('-' * 20)
     print('Started training the model...')
-    trained_model = train.train_model(net, criterion, optimizer, train_loader, val_loader, num_epochs=config['training']['epochs'])
-
+    trained_model = train.train_model(
+            net, criterion, optimizer, train_loader, val_loader,
+            num_epochs=config['training']['epochs'],
+            scheduler=scheduler
+        )
     
     print('Finished training the model.')
     print('-' * 20)
@@ -68,10 +88,10 @@ def main():
     print('Finished training the model.')
     print('-' * 20)
     print(f"Test Accuracy: {test_accuracy * 100:.2f}%")
-    end = time.time()
+    end_time = time()
     print('-' * 20)
-    time = end - start
-    print(f"Finished processing with this time: {time}%")
+    total_time = end_time - start_time
+    print(f"Finished processing within: {total_time} seconds")
     print('-' * 20)
 
 if __name__ == '__main__':
